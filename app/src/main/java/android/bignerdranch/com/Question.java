@@ -3,7 +3,7 @@ package android.bignerdranch.com;
 // Model class within the model layer to store all questions for the GeoQuiz
 public class Question {
 
-
+    // variable objects
     private int mTextResId;
     private boolean mAnswerTrue;
 
