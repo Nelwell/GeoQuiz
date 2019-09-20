@@ -2,6 +2,8 @@ package android.bignerdranch.com;
 
 import androidx.appcompat.app.AppCompatActivity;
 
+import android.app.Activity;
+import android.content.Intent;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
@@ -14,14 +16,18 @@ public class QuizActivity extends AppCompatActivity {
 
     // Sets TAG constant in variable
     private static final String TAG = "QuizActivity";
-    // Key constant for re-creating the current view state during screen rotation
+    // Key String constant for re-creating the current view state during screen rotation
     private static final String KEY_INDEX = "index";
+    // Constant for for request code
+    private static final int REQUEST_CODE_CHEAT = 0;
 
     // Member instance variables
     private Button mTrueButton;
     private Button mFalseButton;
     private Button mNextButton;
+    private Button mCheatButton;
     private TextView mQuestionTextView;
+
 
     // Question array object to hold all questions from quiz
     private Question[] mQuestionBank = new Question[] {
@@ -34,6 +40,8 @@ public class QuizActivity extends AppCompatActivity {
     };
     // Counter to reference question in array
     private int mCurrentIndex = 0;
+    // Member variable to hold extra value from CheatActivity
+    private boolean mIsCheater;
 
     @Override // Ensures compiler checks that QuizActivity has the method to be overridden
     protected void onCreate(Bundle savedInstanceState) {
@@ -77,11 +85,41 @@ public class QuizActivity extends AppCompatActivity {
             @Override
             public void onClick(View view) {
                 mCurrentIndex = (mCurrentIndex + 1) % mQuestionBank.length;
+                // Assumes cheater didn't cheat, unless returned result from CheatActivity shows otherwise
+                mIsCheater = false;
                 updateQuestion();
             }
         });
 
+        mCheatButton = findViewById(R.id.cheat_button);
+        mCheatButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                // Create new intent and start CheatActivity, passes current question's answer to CheatActivity
+                boolean answerIsTrue = mQuestionBank[mCurrentIndex].isAnswerTrue();
+                Intent intent = CheatActivity.newIntent(QuizActivity.this, answerIsTrue);
+                startActivityForResult(intent, REQUEST_CODE_CHEAT); // Intent/request code passed into startActivity
+            }
+        });
+
         updateQuestion();
+    }
+
+    // Handles retrieved result from CheatActivity
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        // Statements to check for expected codes
+        if (resultCode != Activity.RESULT_OK) {
+            return;
+        }
+
+        if (requestCode == REQUEST_CODE_CHEAT) {
+            if (data == null) {
+                return;
+            }
+            // Stores data from CheatActivity result in member variable
+            mIsCheater = CheatActivity.wasAnswerShown(data);
+        }
     }
 
     private void updateQuestion() {
@@ -92,14 +130,19 @@ public class QuizActivity extends AppCompatActivity {
     private void checkAnswer(boolean userPressedTrue) {
         boolean answerIsTrue = mQuestionBank[mCurrentIndex].isAnswerTrue();
 
-        // initialize variable to hold proper resource string ID
-        int messageResId = 0;
+        // Initialize variable to hold proper resource string ID
+        int messageResId;
 
-        // Checks which answer is chosen to decide which Toast to display
-        if (userPressedTrue == answerIsTrue) {
-            messageResId = R.string.correct_toast;
+        // Checks boolean value of mISCheater, sets appropriate toast if user cheated
+        if (mIsCheater) {
+            messageResId = R.string.judgment_toast;
         } else {
-            messageResId = R.string.incorrect_toast;
+            // Checks which answer is chosen to decide which Toast to display
+            if (userPressedTrue == answerIsTrue) {
+                messageResId = R.string.correct_toast;
+            } else {
+                messageResId = R.string.incorrect_toast;
+            }
         }
 
         // Sets and displays Toast
@@ -127,7 +170,7 @@ public class QuizActivity extends AppCompatActivity {
 
     @Override
     // Writes current mCurrentIndex value to the bundle object to maintain current view state during
-    // screen rotation.
+    // screen rotation
     public void onSaveInstanceState(Bundle savedInstanceState) {
         super.onSaveInstanceState(savedInstanceState);
         Log.i(TAG, "onSaveInstanceState");
